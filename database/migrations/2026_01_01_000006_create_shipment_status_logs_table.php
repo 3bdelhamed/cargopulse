@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('shipment_status_logs', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('shipment_id')->constrained('shipments')->cascadeOnDelete();
+            $table->string('from_state')->nullable();
+            $table->string('to_state');
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->text('reason')->nullable();
             $table->timestamps();
+
+            $table->index(['tenant_id', 'shipment_id']);
+            $table->index(['tenant_id', 'to_state']);
         });
     }
 

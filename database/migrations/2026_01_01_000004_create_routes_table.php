@@ -13,7 +13,15 @@ return new class extends Migration
     {
         Schema::create('routes', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
+            $table->string('name');
+            $table->date('date');
+            $table->string('status')->default('draft');
             $table->timestamps();
+
+            $table->index(['tenant_id', 'driver_id', 'date']);
+            $table->index(['tenant_id', 'status']);
         });
     }
 
