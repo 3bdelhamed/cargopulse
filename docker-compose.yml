@@ -1,0 +1,30 @@
+services:
+  pgsql:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: cargopulse
+      POSTGRES_USER: cargopulse_user
+      POSTGRES_PASSWORD: secret_password
+    volumes:
+      - cargopulse-pgsql-data:/var/lib/postgresql/data
+    networks:
+      - cargopulse-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - cargopulse-redis-data:/data
+    networks:
+      - cargopulse-network
+
+networks:
+  cargopulse-network:
+    driver: bridge
+
+volumes:
+  cargopulse-pgsql-data:
+  cargopulse-redis-data:
