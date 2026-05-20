@@ -44,6 +44,7 @@ class ApiV1IntegrationTest extends TestCase
             'merchant_id' => $merchant->id,
             'tracking_number' => 'CP-API-001',
             'destination_address' => 'API Customer Address',
+            'pickup_address' => 'API Pickup Address',
             'cod_amount' => 75,
         ]);
 

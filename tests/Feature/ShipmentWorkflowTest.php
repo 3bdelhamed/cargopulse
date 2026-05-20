@@ -11,6 +11,7 @@ use App\Domains\Shipments\States\DeliveredState;
 use App\Domains\Shipments\States\InTransitState;
 use App\Domains\Shipments\States\PackedState;
 use App\Domains\Shipments\States\PendingState;
+use App\Domains\Shipments\States\PickedUpState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Spatie\ModelStates\Exceptions\TransitionNotFound;
@@ -34,6 +35,7 @@ class ShipmentWorkflowTest extends TestCase
             merchant_id: $merchant->id,
             tracking_number: 'CP-1001',
             destination_address: '42 Customer Street',
+            pickup_address: 'Test Pickup Address',
             cod_amount: 125.50,
         ));
 
@@ -77,6 +79,7 @@ class ShipmentWorkflowTest extends TestCase
         $shipment->state->transitionTo(ConfirmedState::class);
         $shipment->state->transitionTo(PackedState::class);
         $shipment->state->transitionTo(AssignedState::class);
+        $shipment->state->transitionTo(PickedUpState::class);
         $shipment->state->transitionTo(InTransitState::class);
         $shipment->state->transitionTo(DeliveredState::class);
 

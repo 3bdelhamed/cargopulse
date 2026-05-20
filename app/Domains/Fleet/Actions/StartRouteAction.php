@@ -20,6 +20,9 @@ class StartRouteAction
 
             // Automatically transition all assigned shipments
             foreach ($route->shipments as $shipment) {
+                if ($shipment->state->canTransitionTo(\App\Domains\Shipments\States\PickedUpState::class)) {
+                    $shipment->state->transitionTo(\App\Domains\Shipments\States\PickedUpState::class);
+                }
                 if ($shipment->state->canTransitionTo(InTransitState::class)) {
                     $shipment->state->transitionTo(InTransitState::class);
                 }

@@ -22,6 +22,8 @@ class DriverLocationController extends Controller
         // Write coordinates to Redis Geospatial index (no PostgreSQL I/O)
         Redis::geoadd($geoKey, $data->lng, $data->lat, $driverId);
 
+        broadcast(new \App\Domains\Fleet\Events\DriverLocationUpdated($tenantId, $driverId, $data->lat, $data->lng));
+
         // Store additional metadata (like timestamp) in a Redis Hash for batch processing
         Redis::hset($hashKey, $driverId, json_encode([
             'lat' => $data->lat,
