@@ -23,6 +23,6 @@ trait BelongsToTenant
 
     public function tenant()
     {
-        return $this->belongsTo(\App\Models\Tenant::class ?? \App\Domains\Tenants\Models\Tenant::class);
+        return $this->belongsTo(\App\Domains\Tenants\Models\Tenant::class);
     }
 }
