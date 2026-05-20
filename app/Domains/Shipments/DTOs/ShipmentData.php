@@ -20,6 +20,9 @@ class ShipmentData extends Data
         #[StringType]
         public readonly string $destination_address,
 
+        #[StringType]
+        public readonly string $pickup_address,
+
         #[Numeric, Min(0)]
         public readonly float|int $cod_amount,
     ) {

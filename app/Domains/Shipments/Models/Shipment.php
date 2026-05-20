@@ -51,8 +51,14 @@ class Shipment extends Model
     protected static function booted(): void
     {
         static::saved(function (Shipment $shipment) {
-            if ($shipment->wasChanged('state') && $shipment->state instanceof \App\Domains\Shipments\States\DeliveredState) {
-                event(new \App\Domains\Shipments\Events\ShipmentDeliveredEvent($shipment));
+            if ($shipment->wasChanged('state')) {
+                if ($shipment->state instanceof \App\Domains\Shipments\States\DeliveredState) {
+                    event(new \App\Domains\Shipments\Events\ShipmentDeliveredEvent($shipment));
+                } elseif ($shipment->state instanceof \App\Domains\Shipments\States\FailedState) {
+                    event(new \App\Domains\Shipments\Events\ShipmentFailedEvent($shipment));
+                } elseif ($shipment->state instanceof \App\Domains\Shipments\States\PickedUpState) {
+                    event(new \App\Domains\Shipments\Events\ShipmentPickedUpEvent($shipment));
+                }
             }
         });
     }

@@ -15,7 +15,7 @@ class CreateShipmentAction
             'tracking_number' => $data->tracking_number,
             'state' => PendingState::$name,
             'delivery_address' => $data->destination_address,
-            'pickup_address' => 'Pending',
+            'pickup_address' => $data->pickup_address,
             'cod_amount' => $data->cod_amount,
         ]);
     }

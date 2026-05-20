@@ -16,8 +16,8 @@ abstract class ShipmentState extends State
             ->allowTransition(PendingState::class, ConfirmedState::class)
             ->allowTransition(ConfirmedState::class, PackedState::class)
             ->allowTransition(PackedState::class, AssignedState::class)
-            ->allowTransition(ConfirmedState::class, AssignedState::class)
-            ->allowTransition(AssignedState::class, InTransitState::class)
+            ->allowTransition(AssignedState::class, PickedUpState::class)
+            ->allowTransition(PickedUpState::class, InTransitState::class)
             ->allowTransition(InTransitState::class, DeliveredState::class)
             ->allowTransition(InTransitState::class, FailedState::class);
     }
