@@ -15,7 +15,7 @@ class RouteController extends Controller
 {
     public function store(RouteAssignmentData $data, CreateRouteManifestAction $action): JsonResponse
     {
-        $route = $action->exe cute($data);
+        $route = $action->execute($data);
 
         return response()->json([
             'message' => 'Route manifest created successfully',

@@ -16,8 +16,8 @@
             <h2 class="text-xl font-semibold mb-2">Live Map (Coordinates)</h2>
             <div id="map-placeholder" class="bg-gray-200 h-64 flex items-center justify-center rounded">
                 <p id="coordinates" class="text-gray-600 font-mono">
-                    @if($lat && $lng)
-                        Lat: {{ $lat }}, Lng: {{ $lng }}
+                    @if($liveLocation)
+                        Lat: {{ $liveLocation['lat'] }}, Lng: {{ $liveLocation['lng'] }}
                     @else
                         Waiting for driver GPS...
                     @endif
@@ -31,6 +31,7 @@
         window.shipmentTenantId = {{ $shipment->tenant_id }};
     </script>
     
+    @if($liveLocation)
     <script type="module">
         import Echo from '/build/assets/app.js'; // This assumes standard Vite setup for Echo
 
@@ -43,5 +44,6 @@
                 });
         }
     </script>
+    @endif
 </body>
 </html>

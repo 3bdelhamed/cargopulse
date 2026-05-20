@@ -22,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Laravel\Cashier\Cashier::useCustomerModel(\App\Domains\Tenants\Models\Tenant::class);
+
         RateLimiter::for('tenant_api', function (Request $request) {
             return $request->user() && $request->user()->tenant_id
                 ? Limit::perMinute(1000)->by($request->user()->tenant_id)

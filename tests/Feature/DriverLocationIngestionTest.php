@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Domains\Fleet\Events\DriverLocationUpdated;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\BuildsLogisticsData;
@@ -19,6 +21,8 @@ class DriverLocationIngestionTest extends TestCase
         $user = $this->userForTenant($tenant, ['role' => 'Driver']);
 
         Sanctum::actingAs($user, ['gps:update']);
+
+        Event::fake([DriverLocationUpdated::class]);
 
         Redis::shouldReceive('geoadd')
             ->once()
@@ -44,5 +48,9 @@ class DriverLocationIngestionTest extends TestCase
 
         $response->assertAccepted()
             ->assertJsonPath('message', 'Location ingested successfully');
+
+        Event::assertDispatched(DriverLocationUpdated::class, function ($event) use ($user) {
+            return $event->driverId === $user->id;
+        });
     }
 }

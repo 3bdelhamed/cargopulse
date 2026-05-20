@@ -14,19 +14,14 @@ class PublicTrackingController extends Controller
         $shipment = Shipment::withoutGlobalScopes()->where('tracking_number', $trackingNumber)->firstOrFail();
 
         // Attempt to fetch the driver's current live location directly from Redis
-        $liveLocation = Redis::geopos("tenant:{$shipment->tenant_id}:drivers:geo", $shipment->driver_id);
-        
-        $lat = null;
-        $lng = null;
-        if (!empty($liveLocation) && isset($liveLocation[0])) {
-            $lng = $liveLocation[0][0]; // geopos returns lng, lat
-            $lat = $liveLocation[0][1];
-        }
+        $redisData = \Illuminate\Support\Facades\Redis::geopos("tenant:{$shipment->tenant_id}:drivers:geo", $shipment->driver_id);
+        $liveLocation = (!empty($redisData) && is_array($redisData[0]) && count($redisData[0]) >= 2) 
+            ? ['lat' => $redisData[0][1], 'lng' => $redisData[0][0]] 
+            : null;
 
         return view('public.tracking', [
             'shipment' => $shipment,
-            'lat' => $lat,
-            'lng' => $lng,
+            'liveLocation' => $liveLocation,
             'reverbConfig' => config('broadcasting.connections.reverb'),
         ]);
     }

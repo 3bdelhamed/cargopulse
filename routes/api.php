@@ -20,6 +20,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/shipments', [ShipmentController::class, 'store']);
         Route::get('/shipments/search', [AnalyticsController::class, 'searchShipments']);
 
+        Route::post('/subscriptions/checkout', [\App\Http\Controllers\Api\V1\SubscriptionController::class, 'checkout'])
+            ->middleware('role:Company Admin');
+
         Route::get('/analytics/metrics', [AnalyticsController::class, 'metrics']);
 
         Route::post('/routes', [RouteController::class, 'store']);
