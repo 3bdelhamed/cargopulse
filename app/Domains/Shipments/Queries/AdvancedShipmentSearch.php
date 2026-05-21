@@ -3,6 +3,7 @@
 namespace App\Domains\Shipments\Queries;
 
 use App\Domains\Shipments\Models\Shipment;
+use App\Http\Requests\Api\V1\SearchShipmentsRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -38,7 +39,7 @@ class AdvancedShipmentSearch
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortDirection = $filters['sort_direction'] ?? 'desc';
         
-        $allowedSortColumns = ['created_at', 'updated_at', 'route_sequence', 'delivery_fee', 'tracking_number'];
+        $allowedSortColumns = SearchShipmentsRequest::sortColumns();
         
         if (in_array($sortBy, $allowedSortColumns)) {
             $query->orderBy($sortBy, $sortDirection === 'asc' ? 'asc' : 'desc');

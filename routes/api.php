@@ -27,6 +27,9 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/routes', [RouteController::class, 'store']);
         Route::post('/routes/{route}/start', [RouteController::class, 'start']);
+        Route::post('/routes/{route}/complete', [RouteController::class, 'complete']);
+        Route::post('/routes/{route}/cancel', [RouteController::class, 'cancel']);
+        Route::post('/routes/{route}/archive', [RouteController::class, 'archive']);
         Route::patch('/routes/{route}/stops', [RouteController::class, 'reorder']);
 
         Route::post('/warehouses/check-in', [WarehouseScanningController::class, 'checkIn']);

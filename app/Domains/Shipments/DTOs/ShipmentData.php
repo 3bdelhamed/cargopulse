@@ -25,6 +25,9 @@ class ShipmentData extends Data
 
         #[Numeric, Min(0)]
         public readonly float|int $cod_amount,
+
+        #[StringType]
+        public readonly ?string $merchant_reference = null,
     ) {
     }
 }

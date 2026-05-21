@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domains\Warehouses\Actions\CheckInShipmentAction;
 use App\Domains\Warehouses\Actions\TransferShipmentAction;
-use App\Domains\Warehouses\DTOs\ScanData;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\WarehouseScanRequest;
 use Illuminate\Http\JsonResponse;
 
 class WarehouseScanningController extends Controller
@@ -13,9 +13,9 @@ class WarehouseScanningController extends Controller
     /**
      * Highly optimized endpoint for initial check-in scanning.
      */
-    public function checkIn(ScanData $data, CheckInShipmentAction $action): JsonResponse
+    public function checkIn(WarehouseScanRequest $request, CheckInShipmentAction $action): JsonResponse
     {
-        $shipment = $action->execute($data);
+        $shipment = $action->execute($request->toData());
 
         return response()->json([
             'message' => 'Shipment checked into warehouse successfully',
@@ -31,9 +31,9 @@ class WarehouseScanningController extends Controller
     /**
      * Endpoint for internal warehouse transfers.
      */
-    public function transfer(ScanData $data, TransferShipmentAction $action): JsonResponse
+    public function transfer(WarehouseScanRequest $request, TransferShipmentAction $action): JsonResponse
     {
-        $shipment = $action->execute($data);
+        $shipment = $action->execute($request->toData());
 
         return response()->json([
             'message' => 'Shipment transferred successfully',

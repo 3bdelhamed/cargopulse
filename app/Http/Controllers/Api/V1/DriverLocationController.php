@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Domains\Fleet\DTOs\DriverLocationData;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\StoreDriverLocationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 
 class DriverLocationController extends Controller
 {
-    public function store(DriverLocationData $data): JsonResponse
+    public function store(StoreDriverLocationRequest $request): JsonResponse
     {
+        $data = $request->toData();
         // For driver apps, the authenticated user is the driver.
         $driverId = Auth::id(); 
         $tenantId = Auth::user()->tenant_id;

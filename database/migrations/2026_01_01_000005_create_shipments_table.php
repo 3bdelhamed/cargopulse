@@ -17,7 +17,8 @@ return new class extends Migration
             $table->foreignId('merchant_id')->nullable()->constrained('merchants')->nullOnDelete();
             $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
             $table->foreignId('route_id')->nullable()->constrained('routes')->nullOnDelete();
-            $table->string('tracking_number')->unique();
+            $table->string('tracking_number');
+            $table->string('merchant_reference')->nullable();
             
             // Required for spatie/laravel-model-states integration
             $table->string('state'); 
@@ -33,9 +34,13 @@ return new class extends Migration
 
             $table->timestamps();
 
+            $table->unique(['tenant_id', 'tracking_number']);
+            $table->unique(['tenant_id', 'merchant_id', 'merchant_reference']);
             $table->index(['tenant_id', 'state']);
             $table->index(['tenant_id', 'tracking_number']);
             $table->index(['tenant_id', 'driver_id']);
+            $table->index(['tenant_id', 'merchant_id', 'created_at']);
+            $table->index(['tenant_id', 'state', 'created_at']);
         });
     }
 

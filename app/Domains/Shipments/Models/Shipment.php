@@ -59,6 +59,17 @@ class Shipment extends Model
                 } elseif ($shipment->state instanceof \App\Domains\Shipments\States\PickedUpState) {
                     event(new \App\Domains\Shipments\Events\ShipmentPickedUpEvent($shipment));
                 }
+
+                if ($shipment->route_id && (
+                    $shipment->state instanceof \App\Domains\Shipments\States\DeliveredState
+                    || $shipment->state instanceof \App\Domains\Shipments\States\FailedState
+                )) {
+                    $route = $shipment->route()->withoutGlobalScopes()->first();
+
+                    if ($route) {
+                        app(\App\Domains\Fleet\Actions\CompleteRouteAction::class)->completeIfReady($route);
+                    }
+                }
             }
         });
     }

@@ -3,10 +3,12 @@
 namespace App\Domains\Fleet\Actions;
 
 use App\Domains\Fleet\DTOs\RouteAssignmentData;
+use App\Domains\Fleet\Models\Driver;
 use App\Domains\Fleet\Models\Route;
 use App\Domains\Shipments\Models\Shipment;
 use App\Domains\Shipments\States\AssignedState;
-use Exception;
+use App\Exceptions\ConflictException;
+use App\Exceptions\DomainRuleException;
 use Illuminate\Support\Facades\DB;
 
 class CreateRouteManifestAction
@@ -14,35 +16,52 @@ class CreateRouteManifestAction
     public function execute(RouteAssignmentData $data): Route
     {
         return DB::transaction(function () use ($data) {
-            // Validate strict cardinality: A driver can only have one active route
+            Driver::whereKey($data->driver_id)->lockForUpdate()->firstOrFail();
+
             $activeRoute = Route::where('driver_id', $data->driver_id)
-                ->whereIn('status', ['draft', 'in_progress'])
+                ->whereIn('status', Route::activeStatuses())
+                ->lockForUpdate()
                 ->first();
 
             if ($activeRoute) {
-                throw new Exception("Driver already has an active or draft route.");
+                throw new ConflictException('Driver already has an active route.');
             }
 
             $route = Route::create([
                 'driver_id' => $data->driver_id,
                 'name' => 'Manifest - ' . $data->dispatch_date,
                 'date' => $data->dispatch_date,
-                'status' => 'draft',
+                'status' => Route::STATUS_DRAFT,
             ]);
 
-            // Assign shipments and persist specific drop-off sequence
+            $shipments = Shipment::with('route')
+                ->whereKey($data->shipment_ids)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($shipments->count() !== count($data->shipment_ids)) {
+                throw new DomainRuleException('One or more shipments are not available for this tenant.');
+            }
+
             foreach ($data->shipment_ids as $sequence => $shipmentId) {
-                $shipment = Shipment::lockForUpdate()->findOrFail($shipmentId);
-                
+                $shipment = $shipments->get($shipmentId);
+
+                if ($shipment->route && in_array($shipment->route->status, Route::activeStatuses(), true)) {
+                    throw new ConflictException('Shipment is already assigned to an active route.');
+                }
+
+                if (! $shipment->state->canTransitionTo(AssignedState::class)) {
+                    throw new DomainRuleException('Shipment is not in an assignable state.');
+                }
+
                 $shipment->update([
                     'route_id' => $route->id,
                     'driver_id' => $data->driver_id,
                     'route_sequence' => $sequence + 1,
                 ]);
 
-                if ($shipment->state->canTransitionTo(AssignedState::class)) {
-                    $shipment->state->transitionTo(AssignedState::class);
-                }
+                $shipment->state->transitionTo(AssignedState::class);
             }
 
             return $route->load('shipments');

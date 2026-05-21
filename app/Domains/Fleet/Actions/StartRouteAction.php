@@ -4,19 +4,29 @@ namespace App\Domains\Fleet\Actions;
 
 use App\Domains\Fleet\Models\Route;
 use App\Domains\Shipments\States\InTransitState;
-use Exception;
+use App\Exceptions\DomainRuleException;
 use Illuminate\Support\Facades\DB;
 
 class StartRouteAction
 {
     public function execute(Route $route): Route
     {
-        if ($route->status === 'in_progress') {
-            throw new Exception("Route is already in progress.");
+        if ($route->status !== Route::STATUS_DRAFT) {
+            throw new DomainRuleException('Only draft routes can be started.');
         }
 
         return DB::transaction(function () use ($route) {
-            $route->update(['status' => 'in_progress']);
+            $route = Route::whereKey($route->id)->lockForUpdate()->firstOrFail();
+
+            if ($route->status !== Route::STATUS_DRAFT) {
+                throw new DomainRuleException('Only draft routes can be started.');
+            }
+
+            if ($route->shipments()->count() === 0) {
+                throw new DomainRuleException('Route must contain at least one shipment.');
+            }
+
+            $route->update(['status' => Route::STATUS_IN_PROGRESS]);
 
             // Automatically transition all assigned shipments
             foreach ($route->shipments as $shipment) {

@@ -1,92 +1,87 @@
 {
   "info": {
-    "_postman_id": "cargopulse-api-v1",
     "name": "CargoPulse API v1",
-    "description": "Enterprise SaaS Logistics Platform - Multi-tenant shipment, fleet, and real-time tracking API.\n\n**Environment Required:** `CargoPulse - Staging`\n\n**Auth Flow:**\n1. Run `01. Authentication & Onboarding > Login (Tenant Admin)` first\n2. Token auto-saves to `{{tenant_admin_token}}` via test script\n3. All authenticated requests inherit `{{tenant_admin_token}}` from the collection authorization.",
+    "description": "Complete Postman collection for CargoPulse logistics API covering Auth, Shipments, Warehouses, Routes, GPS, Analytics, Billing, and Public Tracking.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "https://staging.cargopulse.com",
-      "type": "string"
-    },
-    {
-      "key": "tenant_admin_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "merchant_api_key",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "driver_mobile_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_shipment_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_route_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_merchant_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_driver_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_warehouse_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "current_tracking_number",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "tenant_id",
-      "value": "1",
-      "type": "string"
-    }
-  ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{tenant_admin_token}}",
-        "type": "string"
-      }
-    ]
   },
   "item": [
     {
-      "name": "01. Authentication & Onboarding",
+      "name": "0. Setup & Prerequisites",
       "item": [
         {
-          "name": "Login (Tenant Admin / User)",
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/up",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "up"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Auto-Generate Test Data (Pre-request Script)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/setup/seed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "setup",
+                "seed"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Store seeded data for subsequent requests",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data) {",
+                  "    pm.environment.set('seeded_tracking_number', jsonData.data.tracking_number);",
+                  "    pm.environment.set('seeded_merchant_id', jsonData.data.merchant_id);",
+                  "    pm.environment.set('seeded_warehouse_id', jsonData.data.warehouse_id);",
+                  "    pm.environment.set('seeded_driver_id', jsonData.data.driver_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Auth Module",
+      "item": [
+        {
+          "name": "Login - Company Admin",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@{{tenant_domain}}\",\n  \"password\": \"password\",\n  \"type\": \"user\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
               "host": [
@@ -98,32 +93,18 @@
                 "auth",
                 "login"
               ]
-            },
-            "description": "Authenticate as internal SaaS user. Auto-saves `tenant_admin_token` and `tenant_id` to collection variables.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@logistics-company.com\",\n  \"password\": \"password123\",\n  \"type\": \"user\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
             }
           },
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Token returned', function () { pm.expect(pm.response.json()).to.have.property('access_token'); });",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set('tenant_admin_token', jsonData.access_token);",
-                  "pm.collectionVariables.set('current_user_id', jsonData.user.id);",
-                  "pm.collectionVariables.set('tenant_id', jsonData.user.tenant_id);"
+                  "pm.environment.set('admin_token', jsonData.access_token);",
+                  "pm.environment.set('admin_user_id', jsonData.user.id);",
+                  "pm.environment.set('tenant_id', jsonData.user.tenant_id);"
                 ],
                 "type": "text/javascript"
               }
@@ -131,16 +112,19 @@
           ]
         },
         {
-          "name": "Login (B2B Merchant)",
+          "name": "Login - Driver",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@{{tenant_domain}}\",\n  \"password\": \"password\",\n  \"type\": \"user\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
               "host": [
@@ -152,30 +136,17 @@
                 "auth",
                 "login"
               ]
-            },
-            "description": "Authenticate as external B2B Merchant. Auto-saves `merchant_api_key`.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"merchant@ecommerce-store.com\",\n  \"password\": \"merchantpass\",\n  \"type\": \"merchant\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
             }
           },
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set('merchant_api_key', jsonData.access_token);",
-                  "pm.collectionVariables.set('current_merchant_id', jsonData.merchant.id);"
+                  "pm.environment.set('driver_token', jsonData.access_token);",
+                  "pm.environment.set('driver_user_id', jsonData.user.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -183,16 +154,19 @@
           ]
         },
         {
-          "name": "Login (Driver Mobile)",
+          "name": "Login - Warehouse Manager",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"warehouse@{{tenant_domain}}\",\n  \"password\": \"password\",\n  \"type\": \"user\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
               "host": [
@@ -204,30 +178,140 @@
                 "auth",
                 "login"
               ]
-            },
-            "description": "Authenticate as Driver. Auto-saves `driver_mobile_token` for mobile namespace requests.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"driver@logistics-company.com\",\n  \"password\": \"driverpass\",\n  \"type\": \"user\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
             }
           },
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
                   "var jsonData = pm.response.json();",
-                  "pm.collectionVariables.set('driver_mobile_token', jsonData.access_token);",
-                  "pm.collectionVariables.set('current_driver_id', jsonData.user.id);"
+                  "pm.environment.set('warehouse_token', jsonData.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Dispatcher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dispatcher@{{tenant_domain}}\",\n  \"password\": \"password\",\n  \"type\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('dispatcher_token', jsonData.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Merchant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"merchant@nile-store.test\",\n  \"password\": \"password\",\n  \"type\": \"merchant\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('merchant_token', jsonData.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Other Tenant Admin (Cross-Tenant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@delta-freight.test\",\n  \"password\": \"password\",\n  \"type\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set('other_tenant_token', jsonData.access_token);",
+                  "pm.environment.set('other_tenant_id', jsonData.user.tenant_id);"
                 ],
                 "type": "text/javascript"
               }
@@ -238,7 +322,16 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/auth/logout",
               "host": [
@@ -250,27 +343,20 @@
                 "auth",
                 "logout"
               ]
-            },
-            "description": "Revoke current Sanctum token."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Logout success message', function () { pm.expect(pm.response.json().message).to.eql('Successfully logged out'); });"
-                ],
-                "type": "text/javascript"
-              }
             }
-          ]
+          },
+          "response": []
         },
         {
-          "name": "Get Authenticated User",
+          "name": "Get Current User",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/user",
               "host": [
@@ -281,35 +367,26 @@
                 "v1",
                 "user"
               ]
-            },
-            "description": "Verify token validity and retrieve current user profile with tenant scoping."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('User has tenant_id', function () { pm.expect(pm.response.json()).to.have.property('tenant_id'); });"
-                ],
-                "type": "text/javascript"
-              }
             }
-          ]
+          },
+          "response": []
         },
         {
-          "name": "Generate Merchant API Keys",
+          "name": "Invalid Login - Wrong Password",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@{{tenant_domain}}\",\n  \"password\": \"wrong-password\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/v1/auth/merchant-keys",
+              "raw": "{{base_url}}/api/v1/auth/login",
               "host": [
                 "{{base_url}}"
               ],
@@ -317,755 +394,82 @@
                 "api",
                 "v1",
                 "auth",
-                "merchant-keys"
+                "login"
               ]
-            },
-            "description": "Generate a new API key for a merchant to use in B2B integrations.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"merchant_id\": \"{{current_merchant_id}}\",\n  \"name\": \"Production E-commerce Integration\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('api_key');",
-                  "pm.collectionVariables.set('merchant_api_key', jsonData.data.api_key);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "02. Super Admin (Platform Level)",
-      "item": [
+          "response": []
+        },
         {
-          "name": "Onboard New Tenant (Logistics Company)",
+          "name": "Invalid Login - Non-existent Email",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ghost@nonexistent.test\",\n  \"password\": \"password\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/v1/platform/tenants",
+              "raw": "{{base_url}}/api/v1/auth/login",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "platform",
-                "tenants"
+                "auth",
+                "login"
               ]
-            },
-            "description": "Super Admin creates a new logistics company tenant on the platform.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"FastTrack Logistics LLC\",\n  \"domain\": \"fasttrack\",\n  \"contact_email\": \"ops@fasttrack.com\",\n  \"billing_email\": \"billing@fasttrack.com\",\n  \"plan\": \"professional\",\n  \"max_drivers\": 50,\n  \"max_warehouses\": 10\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.collectionVariables.set('tenant_id', jsonData.data.id);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "List All Tenants",
+          "name": "Invalid Login - Missing Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@{{tenant_domain}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Expired Token Access",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/platform/tenants",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "platform",
-                "tenants"
-              ]
-            },
-            "description": "Super Admin views all tenants. Bypasses TenantScope via withoutGlobalScope."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Response is paginated list', function () { var d = pm.response.json().data; pm.expect(d).to.be.an('array'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get Tenant Details",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/platform/tenants/{{tenant_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "platform",
-                "tenants",
-                "{{tenant_id}}"
-              ]
-            },
-            "description": "Retrieve specific tenant configuration and subscription status."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "System Health & Queue Status",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/platform/health",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "platform",
-                "health"
-              ]
-            },
-            "description": "Monitor Horizon queue health, failed jobs count, and Redis connectivity."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Health metrics present', function () { var d = pm.response.json().data; pm.expect(d).to.have.property('queue_size'); pm.expect(d).to.have.property('failed_jobs'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "03. Tenant Settings & Billing",
-      "item": [
-        {
-          "name": "View Current Subscription & SaaS Limits",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/tenant/subscription",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "tenant",
-                "subscription"
-              ]
-            },
-            "description": "Retrieve current SaaS tier, usage limits, and driver/warehouse quotas."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('plan');",
-                  "pm.expect(d).to.have.property('max_drivers');",
-                  "pm.expect(d).to.have.property('current_drivers_count');"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Upgrade Subscription (Stripe Integration)",
-          "request": {
-            "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "key": "Authorization",
+                "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.expired.token"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/tenant/billing/upgrade",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "tenant",
-                "billing",
-                "upgrade"
-              ]
-            },
-            "description": "Process Stripe subscription upgrade to a higher SaaS tier.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"plan\": \"enterprise\",\n  \"payment_method_id\": \"pm_1234567890\",\n  \"billing_cycle\": \"annual\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Subscription updated', function () { pm.expect(pm.response.json().data.plan).to.eql('enterprise'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Test SaaS Subscription Gate (Driver Limit)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/drivers",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "drivers"
-              ]
-            },
-            "description": "**CRITICAL TEST:** Attempt to create a driver beyond the SaaS tier limit. Expect 402/403/422.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Overflow Driver Test\",\n  \"email\": \"overflow@test.com\",\n  \"phone\": \"+1234567890\",\n  \"vehicle_type\": \"van\",\n  \"license_number\": \"DRV-999-EXCEED\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Subscription gate enforced', function () { pm.expect(pm.response.code).to.be.oneOf([403, 422, 402]); });",
-                  "pm.test('Error mentions limit or upgrade', function () { var msg = pm.response.json().message || ''; pm.expect(msg).to.match(/limit|upgrade|quota|tier/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "04. Merchant Management & API",
-      "item": [
-        {
-          "name": "Create Merchant",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants"
-              ]
-            },
-            "description": "Create a new B2B merchant client. Auto-saves merchant ID and API key.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Acme E-Commerce Store\",\n  \"contact_email\": \"ops@acme.com\",\n  \"billing_email\": \"billing@acme.com\",\n  \"phone\": \"+1-555-0100\",\n  \"address\": \"123 Commerce St, New York, NY\",\n  \"webhook_url\": \"https://acme.com/webhooks/cargopulse\",\n  \"api_rate_limit\": 1000\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.expect(jsonData.data).to.have.property('api_key');",
-                  "pm.collectionVariables.set('current_merchant_id', jsonData.data.id);",
-                  "pm.collectionVariables.set('merchant_api_key', jsonData.data.api_key);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Merchants",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants"
-              ]
-            },
-            "description": "List all merchants belonging to the current tenant."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Tenant-scoped only', function () { var d = pm.response.json().data; if (d.length > 0) { pm.expect(d[0].tenant_id).to.eql(parseInt(pm.collectionVariables.get('tenant_id'))); } });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get Merchant Details",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants/{{current_merchant_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants",
-                "{{current_merchant_id}}"
-              ]
-            },
-            "description": "Retrieve specific merchant configuration."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Correct merchant', function () { pm.expect(pm.response.json().data.id).to.eql(parseInt(pm.collectionVariables.get('current_merchant_id'))); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Configure Merchant Webhooks",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants/{{current_merchant_id}}/webhooks",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants",
-                "{{current_merchant_id}}",
-                "webhooks"
-              ]
-            },
-            "description": "Set up event webhooks for a merchant to receive real-time shipment updates.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"url\": \"https://acme.com/webhooks/cargopulse\",\n  \"events\": [\n    \"shipment.created\",\n    \"shipment.delivered\",\n    \"shipment.failed\"\n  ],\n  \"secret\": \"whsec_test_secret_123\",\n  \"active\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Webhook configured', function () { pm.expect(pm.response.json().data.webhook_url).to.eql('https://acme.com/webhooks/cargopulse'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "View Merchant COD/Freight Ledger",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants/{{current_merchant_id}}/ledger",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants",
-                "{{current_merchant_id}}",
-                "ledger"
-              ]
-            },
-            "description": "Retrieve merchant's Cash on Delivery reconciliation and delivery fee ledger."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Ledger data present', function () { var d = pm.response.json().data; pm.expect(d).to.have.property('balance'); pm.expect(d).to.have.property('transactions'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Generate Merchant Invoice",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants/{{current_merchant_id}}/invoices/generate",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants",
-                "{{current_merchant_id}}",
-                "invoices",
-                "generate"
-              ]
-            },
-            "description": "Trigger GenerateMerchantInvoicesJob. Aggregates delivered shipments and emails unified PDF invoice.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"period_from\": \"2024-01-01\",\n  \"period_to\": \"2024-01-31\",\n  \"format\": \"pdf\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
-                  "pm.test('Invoice job queued', function () { pm.expect(pm.response.json().message).to.match(/queued|processing|generated/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Test RBAC: Warehouse Manager Accessing Invoice Generation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/merchants/{{current_merchant_id}}/invoices/generate",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "merchants",
-                "{{current_merchant_id}}",
-                "invoices",
-                "generate"
-              ]
-            },
-            "description": "**CRITICAL TEST:** Warehouse Manager role should be forbidden from invoice generation. Expect 403.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"period_from\": \"2024-01-01\",\n  \"period_to\": \"2024-01-31\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{warehouse_manager_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('RBAC blocks unauthorized access', function () { pm.expect(pm.response.code).to.be.oneOf([403, 401]); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "05. Shipments (State & Actions)",
-      "item": [
-        {
-          "name": "Create Single Shipment (API)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments"
-              ]
-            },
-            "description": "Create a new shipment via API. Auto-saves shipment ID and tracking number.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"merchant_id\": \"{{current_merchant_id}}\",\n  \"tracking_number\": \"CP-79271963\",\n  \"reference_number\": \"ORDER-12345\",\n  \"recipient_name\": \"John Doe\",\n  \"recipient_phone\": \"+1-555-0199\",\n  \"recipient_email\": \"john@example.com\",\n  \"destination_address\": \"456 Receiver Ave, Los Angeles, CA\",\n  \"destination_lat\": 34.0522,\n  \"destination_lng\": -118.2437,\n  \"weight_kg\": 2.5,\n  \"dimensions\": {\n    \"length\": 30,\n    \"width\": 20,\n    \"height\": 15\n  },\n  \"cod_amount\": 50.0,\n  \"delivery_notes\": \"Leave at front door\",\n  \"service_type\": \"standard\",\n  \"metadata\": {\n    \"source\": \"api\",\n    \"integration\": \"shopify\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "// Generate unique tracking number",
-                  "var ts = new Date().getTime();",
-                  "pm.collectionVariables.set('current_tracking_number', 'CP-' + ts);"
-                ],
-                "type": "text/javascript"
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.expect(jsonData.data).to.have.property('tracking_number');",
-                  "pm.expect(jsonData.data.state).to.eql('pending');",
-                  "pm.collectionVariables.set('current_shipment_id', jsonData.data.id);",
-                  "pm.collectionVariables.set('current_tracking_number', jsonData.data.tracking_number);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Shipment (Merchant API Key Auth)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments"
-              ]
-            },
-            "description": "B2B merchant creates shipment using their API key. Tests merchant token abilities.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tracking_number\": \"CP-MERCHANT-271963\",\n  \"reference_number\": \"ORDER-M-999\",\n  \"recipient_name\": \"Jane Smith\",\n  \"recipient_phone\": \"+1-555-0188\",\n  \"destination_address\": \"789 Buyer Blvd, Chicago, IL\",\n  \"destination_lat\": 41.8781,\n  \"destination_lng\": -87.6298,\n  \"weight_kg\": 1.2,\n  \"cod_amount\": 0.0,\n  \"service_type\": \"express\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{merchant_api_key}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "pm.test('Merchant-scoped creation', function () { var d = pm.response.json().data; pm.expect(d.merchant_id).to.eql(parseInt(pm.collectionVariables.get('current_merchant_id'))); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Bulk Import Shipments (CSV Upload)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/bulk-import",
+              "raw": "{{base_url}}/api/v1/shipments/search",
               "host": [
                 "{{base_url}}"
               ],
@@ -1073,388 +477,903 @@
                 "api",
                 "v1",
                 "shipments",
-                "bulk-import"
+                "search"
               ]
-            },
-            "description": "Upload CSV with 500+ rows. Tests Action class batch processing and error reporting for malformed rows.",
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "csv_file",
-                  "type": "file",
-                  "src": "/path/to/shipments_bulk.csv"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unauthorized - No Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/shipments/search",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "shipments",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Shipments Module",
+      "item": [
+        {
+          "name": "2.1 Happy Path",
+          "item": [
+            {
+              "name": "Create Shipment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-POSTMAN-{{$randomInt}}\",\n  \"destination_address\": \"123 Postman St, Test City\",\n  \"pickup_address\": \"456 Warehouse Blvd\",\n  \"cod_amount\": 150.0\n}"
                 },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
                 {
-                  "key": "merchant_id",
-                  "value": "{{current_merchant_id}}",
-                  "type": "text"
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "pm.environment.set('created_shipment_id', jsonData.data.id);",
+                      "pm.environment.set('created_tracking_number', jsonData.data.tracking_number);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Search Shipments - All",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Shipments - Filter by State",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search?state=pending",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "state",
+                      "value": "pending"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Shipments - Filter by Tracking Number",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search?tracking_number={{created_tracking_number}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "tracking_number",
+                      "value": "{{created_tracking_number}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Shipments - Sort by Fee ASC",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search?sort_by=delivery_fee&sort_direction=asc",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "sort_by",
+                      "value": "delivery_fee"
+                    },
+                    {
+                      "key": "sort_direction",
+                      "value": "asc"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Shipments - Pagination",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search?per_page=5&page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "per_page",
+                      "value": "5"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Shipments - Combined Filters",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/search?state=pending&sort_by=created_at&sort_direction=desc&per_page=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "state",
+                      "value": "pending"
+                    },
+                    {
+                      "key": "sort_by",
+                      "value": "created_at"
+                    },
+                    {
+                      "key": "sort_direction",
+                      "value": "desc"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "2.2 Negative Tests",
+          "item": [
+            {
+              "name": "Duplicate Tracking Number",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"{{created_tracking_number}}\",\n  \"destination_address\": \"Duplicate Address\",\n  \"pickup_address\": \"Duplicate Pickup\",\n  \"cod_amount\": 50\n}"
                 },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Invalid Merchant ID",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": 999999,\n  \"tracking_number\": \"CP-INVALID-001\",\n  \"destination_address\": \"Test Address\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Missing Required Fields (tracking_number)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"destination_address\": \"Test Address\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Missing Required Fields (merchant_id)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tracking_number\": \"CP-NO-MERCHANT-001\",\n  \"destination_address\": \"Test Address\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Missing Required Fields (destination_address)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-NO-DEST-001\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Missing Required Fields (pickup_address)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-NO-PICKUP-001\",\n  \"destination_address\": \"Test Address\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Empty Payload",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cross-Tenant Merchant",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{other_tenant_merchant_id}}\",\n  \"tracking_number\": \"CP-CROSS-001\",\n  \"destination_address\": \"Cross Tenant Address\",\n  \"pickup_address\": \"Cross Pickup\",\n  \"cod_amount\": 50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Negative COD Amount",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-NEG-COD-001\",\n  \"destination_address\": \"Test Address\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": -50\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "String in COD Field",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-STR-COD-001\",\n  \"destination_address\": \"Test Address\",\n  \"pickup_address\": \"Test Pickup\",\n  \"cod_amount\": \"not-a-number\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "2.3 State Machine",
+          "item": [
+            {
+              "name": "Full Lifecycle: Pending → Delivered",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-LIFECYCLE-{{$randomInt}}\",\n  \"destination_address\": \"Lifecycle Destination\",\n  \"pickup_address\": \"Lifecycle Pickup\",\n  \"cod_amount\": 100\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
                 {
-                  "key": "skip_validation_errors",
-                  "value": "false",
-                  "type": "text"
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "var jsonData = pm.response.json();",
+                      "pm.environment.set('lifecycle_shipment_id', jsonData.data.id);",
+                      "pm.environment.set('lifecycle_tracking', jsonData.data.tracking_number);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Invalid Jump: Pending → Delivered",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"target_state\": \"delivered\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{lifecycle_shipment_id}}/transition",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "{{lifecycle_shipment_id}}",
+                    "transition"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Invalid Jump: Pending → InTransit",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"target_state\": \"in_transit\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments/{{lifecycle_shipment_id}}/transition",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments",
+                    "{{lifecycle_shipment_id}}",
+                    "transition"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Invalid Jump: Confirmed → Delivered",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{warehouse_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"warehouse_id\": \"{{seeded_warehouse_id}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/warehouses/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "warehouses",
+                    "check-in"
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// After check-in, attempt invalid jump from confirmed (now packed) to delivered",
+                      "pm.sendRequest({",
+                      "    url: pm.environment.get('base_url') + '/api/v1/shipments/' + pm.environment.get('lifecycle_shipment_id') + '/transition',",
+                      "    method: 'POST',",
+                      "    header: {",
+                      "        'Authorization': 'Bearer ' + pm.environment.get('admin_token'),",
+                      "        'Content-Type': 'application/json'",
+                      "    },",
+                      "    body: {",
+                      "        mode: 'raw',",
+                      "        raw: JSON.stringify({target_state: 'delivered'})",
+                      "    }",
+                      "}, function (err, res) {",
+                      "    pm.test('Invalid jump returns error', function () {",
+                      "        pm.expect(res.code).to.be.oneOf([422, 400, 403]);",
+                      "    });",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
                 }
               ]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200 or 207', function () { pm.expect(pm.response.code).to.be.oneOf([200, 207, 202]); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('processed_count');",
-                  "pm.expect(jsonData.data).to.have.property('failed_rows');",
-                  "pm.test('Error report for invalid rows', function () { if (jsonData.data.failed_count > 0) { pm.expect(jsonData.data.errors).to.be.an('array'); } });"
-                ],
-                "type": "text/javascript"
-              }
-            }
           ]
         },
         {
-          "name": "Search Shipments (Advanced Filtering)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/search?state=pending&merchant_id={{current_merchant_id}}&date_from=2024-01-01&date_to=2024-12-31&sort_by=created_at&sort_direction=desc&per_page=25",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "search?state=pending&merchant_id={{current_merchant_id}}&date_from=2024-01-01&date_to=2024-12-31&sort_by=created_at&sort_direction=desc&per_page=25"
-              ]
-            },
-            "description": "Advanced search with filters, sorting, and strict database-level pagination."
-          },
-          "event": [
+          "name": "2.4 Race & Idempotency",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('data');",
-                  "pm.expect(jsonData.data).to.have.property('current_page');",
-                  "pm.expect(jsonData.data).to.have.property('per_page');",
-                  "pm.test('Pagination respects per_page', function () { pm.expect(jsonData.data.per_page).to.be.at.most(100); });"
+              "name": "Concurrent Create Requests",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{$guid}}"
+                  }
                 ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get Shipment by ID (with Relations)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/{{current_shipment_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "{{current_shipment_id}}"
-              ]
-            },
-            "description": "Retrieve shipment with eager-loaded relations (merchant, status logs, route)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('merchant');",
-                  "pm.expect(d).to.have.property('status_logs');",
-                  "pm.expect(d.tenant_id).to.eql(parseInt(pm.collectionVariables.get('tenant_id')));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Transition State: Pending → Confirmed",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/{{current_shipment_id}}/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "{{current_shipment_id}}",
-                "state"
-              ]
-            },
-            "description": "Valid state transition via spatie/laravel-model-states.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"state\": \"confirmed\",\n  \"reason\": \"Inventory verified and ready for packing\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-RACE-001\",\n  \"destination_address\": \"Race Condition Address\",\n  \"pickup_address\": \"Race Pickup\",\n  \"cod_amount\": 75\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
                 }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('State transitioned to confirmed', function () { pm.expect(pm.response.json().data.state).to.eql('confirmed'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Transition State: Confirmed → Assigned",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/{{current_shipment_id}}/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "{{current_shipment_id}}",
-                "state"
-              ]
+              },
+              "response": []
             },
-            "description": "Assign shipment to a route and driver.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"state\": \"assigned\",\n  \"route_id\": \"{{current_route_id}}\",\n  \"driver_id\": \"{{current_driver_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+            {
+              "name": "Idempotency Key Test",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "unique-key-12345"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"merchant_id\": \"{{seeded_merchant_id}}\",\n  \"tracking_number\": \"CP-IDEMPOTENT-001\",\n  \"destination_address\": \"Idempotent Address\",\n  \"pickup_address\": \"Idempotent Pickup\",\n  \"cod_amount\": 200\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/shipments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "shipments"
+                  ]
                 }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('State transitioned to assigned', function () { pm.expect(pm.response.json().data.state).to.eql('assigned'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Test Illegal State Transition (Pending → Delivered)",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/{{current_shipment_id}}/state",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "{{current_shipment_id}}",
-                "state"
-              ]
-            },
-            "description": "**CRITICAL TEST:** Attempt to skip from Pending directly to Delivered. Expect state transition exception.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"state\": \"delivered\",\n  \"signature\": \"base64_fake_signature\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// Store first response idempotency key result",
+                      "var jsonData = pm.response.json();",
+                      "pm.environment.set('idempotent_shipment_id', jsonData.data.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
                 }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Illegal transition blocked', function () { pm.expect(pm.response.code).to.be.oneOf([422, 400, 409]); });",
-                  "pm.test('Error indicates invalid transition', function () { var msg = pm.response.json().message || ''; pm.expect(msg).to.match(/transition|invalid|illegal|state/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Test Tenant Isolation: Access Shipment from Other Tenant",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/99999",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "99999"
               ]
-            },
-            "description": "**CRITICAL TEST:** Attempt to access shipment ID belonging to Tenant B while authenticated as Tenant A. Expect 404 via TenantScope."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Cross-tenant access returns 404', function () { pm.expect(pm.response.code).to.be.oneOf([404, 403]); });"
-                ],
-                "type": "text/javascript"
-              }
             }
           ]
         }
       ]
     },
     {
-      "name": "06. Warehouses & Inventory",
+      "name": "3. Warehouse Module",
       "item": [
         {
-          "name": "Create Warehouse (Staging Hub)",
+          "name": "Check-In Shipment (Confirmed → Packed)",
           "request": {
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{warehouse_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/warehouses",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "warehouses"
-              ]
-            },
-            "description": "Add a new warehouse/staging hub to the tenant.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Central Distribution Hub\",\n  \"code\": \"CDH-001\",\n  \"address\": \"1000 Logistics Way, Industrial District\",\n  \"lat\": 40.7128,\n  \"lng\": -74.006,\n  \"manager_id\": \"{{current_user_id}}\",\n  \"capacity\": 5000,\n  \"active\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.collectionVariables.set('current_warehouse_id', jsonData.data.id);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Warehouses",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/warehouses",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "warehouses"
-              ]
+              "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"warehouse_id\": \"{{seeded_warehouse_id}}\"\n}"
             },
-            "description": "List all warehouses for the current tenant."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Tenant-scoped list', function () { var d = pm.response.json().data; if (d.length > 0) { pm.expect(d[0].tenant_id).to.eql(parseInt(pm.collectionVariables.get('tenant_id'))); } });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Warehouse Check-In (Scan Shipment)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
             "url": {
               "raw": "{{base_url}}/api/v1/warehouses/check-in",
               "host": [
@@ -1466,45 +1385,28 @@
                 "warehouses",
                 "check-in"
               ]
-            },
-            "description": "Highly optimized check-in endpoint. Updates shipment state and warehouse assignment.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipment_id\": \"{{current_shipment_id}}\",\n  \"warehouse_id\": \"{{current_warehouse_id}}\",\n  \"scanned_by\": \"{{current_user_id}}\",\n  \"scan_type\": \"check_in\",\n  \"barcode\": \"{{current_tracking_number}}\",\n  \"notes\": \"Received in good condition\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d.tracking_number).to.eql(pm.collectionVariables.get('current_tracking_number'));",
-                  "pm.expect(d.state).to.eql('packed');",
-                  "pm.expect(d.warehouse_id).to.eql(parseInt(pm.collectionVariables.get('current_warehouse_id')));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Warehouse Transfer (Internal Movement)",
+          "name": "Transfer Shipment Between Warehouses",
           "request": {
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{warehouse_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"warehouse_id\": \"{{destination_warehouse_id}}\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/warehouses/transfer",
               "host": [
@@ -1516,125 +1418,99 @@
                 "warehouses",
                 "transfer"
               ]
-            },
-            "description": "Transfer shipment between internal warehouse locations.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipment_id\": \"{{current_shipment_id}}\",\n  \"from_warehouse_id\": \"{{current_warehouse_id}}\",\n  \"to_warehouse_id\": \"{{current_warehouse_id}}\",\n  \"transferred_by\": \"{{current_user_id}}\",\n  \"reason\": \"Re-routing to closer hub\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Transfer successful', function () { pm.expect(pm.response.json().message).to.match(/transferred/i); });"
-                ],
-                "type": "text/javascript"
+          "response": []
+        },
+        {
+          "name": "Same Warehouse Transfer (Negative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouse_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"warehouse_id\": \"{{destination_warehouse_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/warehouses/transfer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses",
+                "transfer"
+              ]
             }
-          ]
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Warehouse ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouse_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tracking_number\": \"{{lifecycle_tracking}}\",\n  \"warehouse_id\": 999999\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/warehouses/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "warehouses",
+                "check-in"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
     {
-      "name": "07. Routes & Fleet Management",
+      "name": "4. Route Manifest Module",
       "item": [
         {
-          "name": "Create Driver",
+          "name": "Create Route",
           "request": {
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{dispatcher_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/drivers",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "drivers"
-              ]
-            },
-            "description": "Add a new driver to the fleet.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Michael Driver\",\n  \"email\": \"michael.driver@logistics.com\",\n  \"phone\": \"+1-555-0177\",\n  \"license_number\": \"DRV-2024-001\",\n  \"vehicle_type\": \"van\",\n  \"vehicle_plate\": \"LOG-1234\",\n  \"max_capacity_kg\": 500,\n  \"active\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.collectionVariables.set('current_driver_id', jsonData.data.id);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Drivers",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/drivers",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "drivers"
-              ]
+              "raw": "{\n  \"driver_id\": \"{{seeded_driver_id}}\",\n  \"dispatch_date\": \"2026-05-21\",\n  \"shipment_ids\": [\n    \"{{lifecycle_shipment_id}}\"\n  ]\n}"
             },
-            "description": "List all drivers for the tenant."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create Route Manifest",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
             "url": {
               "raw": "{{base_url}}/api/v1/routes",
               "host": [
@@ -1645,74 +1521,16 @@
                 "v1",
                 "routes"
               ]
-            },
-            "description": "Create a daily route manifest assigned to exactly one driver. Auto-saves route ID.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"driver_id\": \"{{current_driver_id}}\",\n  \"date\": \"2024-02-15\",\n  \"name\": \"Downtown LA Morning Run\",\n  \"vehicle_id\": 1,\n  \"estimated_start_time\": \"08:00:00\",\n  \"estimated_end_time\": \"14:00:00\",\n  \"shipment_ids\": [\n    \"{{current_shipment_id}}\"\n  ],\n  \"optimization_strategy\": \"shortest_path\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
+          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
                   "var jsonData = pm.response.json();",
-                  "pm.expect(jsonData.data).to.have.property('id');",
-                  "pm.expect(jsonData.data).to.have.property('stops');",
-                  "pm.collectionVariables.set('current_route_id', jsonData.data.id);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Test Route Exclusivity (Duplicate Assignment)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/routes",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "routes"
-              ]
-            },
-            "description": "**CRITICAL TEST:** Attempt to create a second route for the same driver on the same date. Expect validation failure.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"driver_id\": \"{{current_driver_id}}\",\n  \"date\": \"2024-02-15\",\n  \"name\": \"Duplicate Route Test\",\n  \"shipment_ids\": []\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Duplicate route assignment blocked', function () { pm.expect(pm.response.code).to.be.oneOf([422, 409, 400]); });",
-                  "pm.test('Error mentions exclusivity or conflict', function () { var msg = pm.response.json().message || ''; pm.expect(msg).to.match(/exclusive|already assigned|conflict|exists/i); });"
+                  "pm.environment.set('route_id', jsonData.data.id);"
                 ],
                 "type": "text/javascript"
               }
@@ -1725,13 +1543,16 @@
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/routes/{{current_route_id}}/start",
+              "raw": "{{base_url}}/api/v1/routes/{{route_id}}/start",
               "host": [
                 "{{base_url}}"
               ],
@@ -1739,47 +1560,33 @@
                 "api",
                 "v1",
                 "routes",
-                "{{current_route_id}}",
+                "{{route_id}}",
                 "start"
               ]
-            },
-            "description": "Driver starts the route. Triggers state machine update.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"started_at\": \"2024-02-15T08:05:00Z\",\n  \"odometer_start\": 15000\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Route status is active', function () { pm.expect(pm.response.json().data.status).to.eql('active'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Reorder Route Stops",
+          "name": "Reorder Stops",
           "request": {
             "method": "PATCH",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{dispatcher_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipment_ids\": [\n    \"{{lifecycle_shipment_id}}\"\n  ]\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/v1/routes/{{current_route_id}}/stops",
+              "raw": "{{base_url}}/api/v1/routes/{{route_id}}/stops",
               "host": [
                 "{{base_url}}"
               ],
@@ -1787,249 +1594,36 @@
                 "api",
                 "v1",
                 "routes",
-                "{{current_route_id}}",
+                "{{route_id}}",
                 "stops"
               ]
-            },
-            "description": "Manually reorder route stops or apply optimization algorithm.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stops\": [\n    {\n      \"shipment_id\": \"{{current_shipment_id}}\",\n      \"sequence\": 1,\n      \"estimated_arrival\": \"08:30:00\"\n    }\n  ],\n  \"optimization_applied\": false,\n  \"reason\": \"Customer requested earlier delivery\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Stops reordered', function () { pm.expect(pm.response.json().message).to.match(/reordered/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get Route Details",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/routes/{{current_route_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "routes",
-                "{{current_route_id}}"
-              ]
-            },
-            "description": "Retrieve route with driver, stops, and shipment relations."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('driver');",
-                  "pm.expect(d).to.have.property('stops');",
-                  "pm.expect(d).to.have.property('shipments');"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "08. Driver Mobile Operations",
+      "name": "5. GPS & Driver Location Module",
       "item": [
         {
-          "name": "Get Today's Manifest (Driver)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/mobile/manifest",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "mobile",
-                "manifest"
-              ]
-            },
-            "description": "Driver retrieves their assigned route and stops for today. Uses `driver_mobile_token`.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('route');",
-                  "pm.expect(d).to.have.property('stops');",
-                  "pm.expect(d.route.driver_id).to.eql(parseInt(pm.collectionVariables.get('current_driver_id')));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Mark Shipment Delivered + Signature",
+          "name": "Post Driver Location",
           "request": {
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/mobile/shipments/{{current_shipment_id}}/deliver",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "mobile",
-                "shipments",
-                "{{current_shipment_id}}",
-                "deliver"
-              ]
-            },
-            "description": "Driver completes delivery. Triggers ShipmentDeliveredEvent and domain event listeners.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"delivered_at\": \"2024-02-15T10:30:00Z\",\n  \"signature\": \"data:image/png;base64,iVBORw0KGgoAAAANS...\",\n  \"recipient_name\": \"John Doe\",\n  \"photos\": [\n    \"data:image/jpeg;base64,/9j/4AAQSkZJRg...\"\n  ],\n  \"cod_collected\": 50.0,\n  \"notes\": \"Left with receptionist\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"lat\": 30.0444,\n  \"lng\": 31.2357,\n  \"timestamp\": 1779254400\n}"
             },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Shipment state is delivered', function () { pm.expect(pm.response.json().data.state).to.eql('delivered'); });",
-                  "pm.test('COD recorded', function () { pm.expect(pm.response.json().data.cod_collected).to.eql(50.00); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Mark Shipment Failed (Attempted Delivery)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/mobile/shipments/{{current_shipment_id}}/fail",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "mobile",
-                "shipments",
-                "{{current_shipment_id}}",
-                "fail"
-              ]
-            },
-            "description": "Driver marks delivery as failed. Tests alternative state transition path.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"failed_at\": \"2024-02-15T11:00:00Z\",\n  \"reason\": \"recipient_not_available\",\n  \"notes\": \"No answer at door, called twice\",\n  \"next_attempt_date\": \"2024-02-16\",\n  \"photos\": []\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('State is failed', function () { pm.expect(pm.response.json().data.state).to.eql('failed'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Ingest GPS Location (5-sec Redis Ingestion)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
             "url": {
               "raw": "{{base_url}}/api/v1/drivers/location",
               "host": [
@@ -2041,53 +1635,24 @@
                 "drivers",
                 "location"
               ]
-            },
-            "description": "**HIGH CONCURRENCY TEST:** Push GPS coordinates. Must write to Redis only, no PostgreSQL I/O. Response < 200ms.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"lat\": 34.0522,\n  \"lng\": -118.2437,\n  \"timestamp\": \"2024-02-15T10:30:05Z\",\n  \"accuracy\": 4.5,\n  \"speed\": 35.2,\n  \"heading\": 270\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
-              ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
-                  "pm.test('Response time < 200ms', function () { pm.expect(pm.response.responseTime).to.be.below(200); });",
-                  "pm.test('Redis ingestion confirmed', function () { pm.expect(pm.response.json().message).to.match(/ingested|received|accepted/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Bulk GPS Ingestion (Load Test - 100 concurrent)",
+          "name": "GPS Without Auth (Negative)",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 30.0444,\n  \"lng\": 31.2357,\n  \"timestamp\": 1779254400\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/drivers/location",
               "host": [
@@ -2099,46 +1664,58 @@
                 "drivers",
                 "location"
               ]
-            },
-            "description": "Simulate high-frequency GPS batch ingestion. Tests Redis Geospatial index throughput.",
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GPS Rate Limit Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"batch\": [\n    {\n      \"lat\": 34.0522,\n      \"lng\": -118.2437,\n      \"timestamp\": \"2024-02-15T10:30:00Z\"\n    },\n    {\n      \"lat\": 34.0532,\n      \"lng\": -118.2427,\n      \"timestamp\": \"2024-02-15T10:30:01Z\"\n    },\n    {\n      \"lat\": 34.0542,\n      \"lng\": -118.24170000000001,\n      \"timestamp\": \"2024-02-15T10:30:02Z\"\n    },\n    {\n      \"lat\": 34.0552,\n      \"lng\": -118.2407,\n      \"timestamp\": \"2024-02-15T10:30:03Z\"\n    },\n    {\n      \"lat\": 34.0562,\n      \"lng\": -118.2397,\n      \"timestamp\": \"2024-02-15T10:30:04Z\"\n    },\n    {\n      \"lat\": 34.0572,\n      \"lng\": -118.23870000000001,\n      \"timestamp\": \"2024-02-15T10:30:05Z\"\n    },\n    {\n      \"lat\": 34.0582,\n      \"lng\": -118.2377,\n      \"timestamp\": \"2024-02-15T10:30:06Z\"\n    },\n    {\n      \"lat\": 34.0592,\n      \"lng\": -118.2367,\n      \"timestamp\": \"2024-02-15T10:30:07Z\"\n    },\n    {\n      \"lat\": 34.0602,\n      \"lng\": -118.23570000000001,\n      \"timestamp\": \"2024-02-15T10:30:08Z\"\n    },\n    {\n      \"lat\": 34.0612,\n      \"lng\": -118.2347,\n      \"timestamp\": \"2024-02-15T10:30:09Z\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"lat\": 30.0445,\n  \"lng\": 31.2358,\n  \"timestamp\": 1779254401\n}"
             },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
+            "url": {
+              "raw": "{{base_url}}/api/v1/drivers/location",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "drivers",
+                "location"
               ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
-                  "pm.test('Batch accepted', function () { pm.expect(pm.response.json().data.processed_count).to.be.above(0); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Analytics Module",
+      "item": [
         {
-          "name": "Test Token Scope: Driver accessing Web-only Route",
+          "name": "Get Dashboard Metrics",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/analytics/metrics",
               "host": [
@@ -2150,121 +1727,20 @@
                 "analytics",
                 "metrics"
               ]
-            },
-            "description": "**CRITICAL TEST:** Driver Sanctum token with `shipments:update` ability attempts to access analytics dashboard. Expect 403.",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{driver_mobile_token}}",
-                  "type": "string"
-                }
-              ]
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Driver blocked from admin route', function () { pm.expect(pm.response.code).to.be.oneOf([403, 401]); });",
-                  "pm.test('Error indicates insufficient abilities', function () { var msg = pm.response.json().message || ''; pm.expect(msg).to.match(/forbidden|unauthorized|ability|permission/i); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "09. Public Tracking",
-      "item": [
-        {
-          "name": "Track Shipment by Tracking Number",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/track/{{current_tracking_number}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "track",
-                "{{current_tracking_number}}"
-              ]
-            },
-            "description": "Public tracking endpoint. No authentication required. Returns latest Redis coordinates and status.",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('tracking_number');",
-                  "pm.expect(d).to.have.property('state');",
-                  "pm.expect(d).to.have.property('current_location');",
-                  "pm.expect(d).to.have.property('estimated_delivery');",
-                  "pm.expect(d.tracking_number).to.eql(pm.collectionVariables.get('current_tracking_number'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Track Non-existent Shipment",
+          "name": "Cross-Tenant Metrics Isolation",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/track/INVALID-TRACK-99999",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "track",
-                "INVALID-TRACK-99999"
-              ]
-            },
-            "description": "Test graceful handling of invalid tracking numbers.",
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Invalid tracking returns 404', function () { pm.expect(pm.response.code).to.be.oneOf([404, 400]); });"
-                ],
-                "type": "text/javascript"
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{other_tenant_token}}"
               }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "10. Analytics & Dashboard",
-      "item": [
-        {
-          "name": "Get Tenant Dashboard Metrics (KPIs)",
-          "request": {
-            "method": "GET",
-            "header": [],
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/analytics/metrics",
               "host": [
@@ -2276,196 +1752,148 @@
                 "analytics",
                 "metrics"
               ]
-            },
-            "description": "Retrieve global KPI metrics scoped strictly to the active tenant."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('total_shipments');",
-                  "pm.expect(d).to.have.property('delivered_today');",
-                  "pm.expect(d).to.have.property('active_routes');",
-                  "pm.expect(d).to.have.property('fleet_utilization');",
-                  "pm.expect(d).to.have.property('cod_pending');"
-                ],
-                "type": "text/javascript"
-              }
             }
-          ]
-        },
-        {
-          "name": "Advanced Shipment Search",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/shipments/search?state=delivered&merchant_id={{current_merchant_id}}&tracking_number={{current_tracking_number}}&date_from=2024-01-01&date_to=2024-12-31&sort_by=delivered_at&sort_direction=desc&per_page=10",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "shipments",
-                "search?state=delivered&merchant_id={{current_merchant_id}}&tracking_number={{current_tracking_number}}&date_from=2024-01-01&date_to=2024-12-31&sort_by=delivered_at&sort_direction=desc&per_page=10"
-              ]
-            },
-            "description": "Complex filtered search with multiple criteria and pagination."
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "var d = pm.response.json().data;",
-                  "pm.expect(d).to.have.property('data');",
-                  "pm.expect(d).to.have.property('total');",
-                  "pm.expect(d.per_page).to.eql(10);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "11. Event-Driven Workflows & Webhooks",
+      "name": "7. Billing & Subscription Module",
       "item": [
         {
-          "name": "Trigger ShipmentDeliveredEvent (Manual Test)",
+          "name": "Stripe Checkout",
           "request": {
             "method": "POST",
             "header": [
               {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_id\": \"price_test_123\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/v1/test/events/shipment-delivered",
+              "raw": "{{base_url}}/api/v1/subscriptions/checkout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "test",
-                "events",
-                "shipment-delivered"
+                "subscriptions",
+                "checkout"
               ]
-            },
-            "description": "Manually fire domain event to verify Horizon queues up all async listeners.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipment_id\": \"{{current_shipment_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Event dispatched', function () { pm.expect(pm.response.json().message).to.match(/dispatched|triggered|fired/i); });",
-                  "pm.test('Listeners queued', function () { var d = pm.response.json().data; pm.expect(d).to.have.property('queued_jobs'); pm.expect(d.queued_jobs).to.include('SendDeliveryWebhookToMerchant'); pm.expect(d.queued_jobs).to.include('UpdateDriverMetrics'); pm.expect(d.queued_jobs).to.include('PushDeliveryNotificationToCustomer'); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Test Webhook Retry with Backoff",
+          "name": "Stripe Webhook (Simulated)",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"customer.subscription.created\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"sub_test_123\",\n      \"customer\": \"cus_test_123\",\n      \"status\": \"active\"\n    }\n  }\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/api/v1/test/webhook/retry",
+              "raw": "{{base_url}}/stripe/webhook",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "stripe",
+                "webhook"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Non-Admin Checkout (Negative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_id\": \"price_test_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/checkout",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "test",
-                "webhook",
-                "retry"
+                "subscriptions",
+                "checkout"
               ]
-            },
-            "description": "Force merchant webhook endpoint to return 500. Verify exponential backoff (1m, 5m, 15m) before failed job.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"merchant_id\": \"{{current_merchant_id}}\",\n  \"event\": \"shipment.delivered\",\n  \"force_failure\": true,\n  \"failure_status\": 500\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });",
-                  "pm.test('Webhook job queued with retry config', function () { var d = pm.response.json().data; pm.expect(d).to.have.property('attempts'); pm.expect(d).to.have.property('backoff_seconds'); pm.expect(d.backoff_seconds).to.be.above(0); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Public Tracking Module",
+      "item": [
         {
-          "name": "Trigger PersistRedisGpsDataJob",
+          "name": "Public Tracking Page",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/test/jobs/persist-gps",
+              "raw": "{{base_url}}/track/{{created_tracking_number}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "test",
-                "jobs",
-                "persist-gps"
+                "track",
+                "{{created_tracking_number}}"
               ]
-            },
-            "description": "Manually trigger the scheduled job that batches Redis GPS data to PostgreSQL PostGIS."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Job dispatched', function () { pm.expect(pm.response.json().message).to.match(/dispatched|queued|running/i); });"
-                ],
-                "type": "text/javascript"
-              }
             }
-          ]
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Tracking Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/track/INVALID-TRACK-999",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "track",
+                "INVALID-TRACK-999"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
